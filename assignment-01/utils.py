@@ -7,6 +7,9 @@ def read_img(path):
     return cv2.imread(path, cv2.IMREAD_GRAYSCALE)
 
 def write_img(path, img):
+    # OpenCV encoders expect uint8 for common image formats like PNG/JPG.
+    if img.dtype != np.uint8:
+        img = np.clip(img, 0, 255).astype(np.uint8)
     cv2.imwrite(path, img)
 
 def draw_corner(img_path, save_path, coner_list):
