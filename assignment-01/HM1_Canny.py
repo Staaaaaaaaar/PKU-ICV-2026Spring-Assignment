@@ -71,12 +71,12 @@ def hysteresis_thresholding(img) :
             output: array(float)
     """
     #you can adjust the parameters to fit your own implementation 
-    low_ratio = 0.1
-    high_ratio = 0.3
+    low_ratio = 0.05
+    high_ratio = 0.22
 
-    mean_val = np.mean(img)
-    high_threshold = mean_val * high_ratio
-    low_threshold = mean_val * low_ratio
+    max_val = np.max(img)
+    high_threshold = max_val * high_ratio
+    low_threshold = max_val * low_ratio
 
     strong = img >= high_threshold
     weak = (img >= low_threshold) & (~strong)
