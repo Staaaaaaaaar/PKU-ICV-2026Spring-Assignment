@@ -45,6 +45,18 @@ class CIFAR10(torch.utils.data.Dataset):
         self.data = np.vstack(self.data).reshape(-1, 3, 32, 32)
         self.data = self.data.transpose((0, 2, 3, 1))  # convert to HWC
 
+        self.train_transform = tfs.Compose([
+            tfs.RandomCrop(32, padding=4),
+            tfs.RandomHorizontalFlip(p=0.5),
+            tfs.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+            tfs.ToTensor(),
+            tfs.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
+        ])
+        self.test_transform = tfs.Compose([
+            tfs.ToTensor(),
+            tfs.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
+        ])
+
         self._load_meta()
 
     def _load_meta(self):
@@ -63,12 +75,15 @@ class CIFAR10(torch.utils.data.Dataset):
             tuple: (image, target) where target is index of the target class.
         """
         img, target = self.data[index], self.targets[index]
-        img = img.astype(np.float32)
-        img = img.transpose(2, 0, 1)
+        img = Image.fromarray(img.astype(np.uint8))
         
         # ------------TODO--------------
         # data augmentation
         # ------------TODO--------------
+        if self.train:
+            img = self.train_transform(img)
+        else:
+            img = self.test_transform(img)
 
         return img, target
 
@@ -97,15 +112,25 @@ if __name__ == '__main__':
     img = Image.open('Lenna.png')
     img.save('../results/Lenna.png')
 
+    os.makedirs('../results', exist_ok=True)
+
     # --------------TODO------------------
     # Copy the first kind of your augmentation code here
     # --------------TODO------------------
-    aug1 = img
+    aug1_transform = tfs.Compose([
+        tfs.RandomResizedCrop(size=img.size[0], scale=(0.7, 1.0), ratio=(0.9, 1.1)),
+        tfs.RandomHorizontalFlip(p=1.0),
+    ])
+    aug1 = aug1_transform(img)
     aug1.save(f'../results/Lenna_aug1.png')
 
     # --------------TODO------------------
     # Copy the second kind of your augmentation code here
     # --------------TODO------------------
-    aug2 = img
+    aug2_transform = tfs.Compose([
+        tfs.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.05),
+        tfs.RandomRotation(degrees=20),
+    ])
+    aug2 = aug2_transform(img)
     aug2.save(f'../results/Lenna_aug2.png')
 
