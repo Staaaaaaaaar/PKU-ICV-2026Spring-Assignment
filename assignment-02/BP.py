@@ -36,6 +36,11 @@ if __name__ == "__main__":
 
 
         # Backward : compute the gradient of paratmerters of layer1 (grad_layer_1) and layer2 (grad_layer_2)
+        grad_output_layer_2 = pred_y - gt_y
+        grad_layer_2 = output_layer_1_act.T.dot(grad_output_layer_2)
+
+        grad_output_layer_1 = grad_output_layer_2.dot(MLP_layer_2.T) * output_layer_1_act * (1 - output_layer_1_act)
+        grad_layer_1 = input_vector.T.dot(grad_output_layer_1)
 
         MLP_layer_1 -= lr * grad_layer_1
         MLP_layer_2 -= lr * grad_layer_2
