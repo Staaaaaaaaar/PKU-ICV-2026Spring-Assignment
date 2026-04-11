@@ -5,29 +5,63 @@ import os
 
 # eps may help you to deal with numerical problem
 eps = 1e-5
+momentum = 0.9
+running_mean = None
+running_var = None
+
+
 def bn_forward_test(x, gamma, beta, mean, var):
 
     #----------------TODO------------------
     # Implement forward 
     #----------------TODO------------------
+    x_hat = (x - mean) / np.sqrt(var + eps)
+    out = gamma * x_hat + beta
 
     return out
 
+
 def bn_forward_train(x, gamma, beta):
+    global running_mean, running_var
 
     #----------------TODO------------------
     # Implement forward 
     #----------------TODO------------------
+    sample_mean = np.mean(x, axis=0)
+    sample_var = np.var(x, axis=0)
+    x_hat = (x - sample_mean) / np.sqrt(sample_var + eps)
+    out = gamma * x_hat + beta
+
+    if running_mean is None:
+        running_mean = sample_mean.copy()
+        running_var = sample_var.copy()
+    else:
+        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+        running_var = momentum * running_var + (1 - momentum) * sample_var
 
     # save intermidiate variables for computing the gradient when backward
     cache = (gamma, x, sample_mean, sample_var, x_hat)
     return out, cache
     
+
 def bn_backward(dout, cache):
 
     #----------------TODO------------------
     # Implement backward 
     #----------------TODO------------------
+    gamma, x, sample_mean, sample_var, x_hat = cache
+    batch_size = x.shape[0]
+
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(dout * x_hat, axis=0)
+
+    dxhat = dout * gamma
+    inv_std = 1.0 / np.sqrt(sample_var + eps)
+    dx = (1.0 / batch_size) * inv_std * (
+        batch_size * dxhat
+        - np.sum(dxhat, axis=0)
+        - x_hat * np.sum(dxhat * x_hat, axis=0)
+    )
 
     return dx, dgamma, dbeta
 
@@ -69,8 +103,8 @@ if __name__ == "__main__":
     # compute mean and var for testing
     # add codes anywhere as you need
     # ---------------- TODO -------------------
-    mean = 0.
-    var = 0.
+    mean = np.zeros(16)
+    var = np.ones(16)
 
     # training 
     for i in range(50):
@@ -100,6 +134,9 @@ if __name__ == "__main__":
         beta -= lr * grad_beta
         MLP_layer_1 -= lr * grad_layer_1
         MLP_layer_2 -= lr * grad_layer_2
+
+    mean = running_mean
+    var = running_var
     
     # validate
     output_layer_1 = val_data.dot(MLP_layer_1)
