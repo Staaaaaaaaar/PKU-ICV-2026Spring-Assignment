@@ -1,4 +1,6 @@
 .vscode/
 __pycache__/
-result/
-results/
+assignment-01/result/
+assignment-02/results/
+assignment-02/experiments/
+assignment-02/datasets/
