@@ -13,6 +13,9 @@ def MyCELoss(pred, gt):
     # ----------TODO------------
     # Implement CE loss here
     # ----------TODO------------
+    log_prob = torch.log_softmax(pred, dim=1)
+    nll = -log_prob.gather(1, gt.view(-1, 1)).squeeze(1)
+    loss = nll.mean()
     return loss 
 
 
@@ -35,6 +38,8 @@ def validate(epoch, model, val_loader, writer):
     # ----------TODO------------
     # draw accuracy curve!
     # ----------TODO------------
+    writer.add_scalar('val/acc1', top1.avg, epoch)
+    writer.add_scalar('val/acc5', top5.avg, epoch)
 
     print(' Val Acc@1 {top1.avg:.3f}'.format(top1=top1))
     print(' Val Acc@5 {top5.avg:.3f}'.format(top5=top5))
@@ -70,10 +75,12 @@ def train(epoch, model, optimizer, criterion, train_loader, writer):
 
         iteration += 1
         if iteration % 50 == 0:
-            pass 
             # ----------TODO------------
             # draw loss curve and accuracy curve!
             # ----------TODO------------
+            writer.add_scalar('train/loss_iter', losses.val, iteration)
+            writer.add_scalar('train/acc1_iter', top1.val, iteration)
+            writer.add_scalar('train/acc5_iter', top5.val, iteration)
 
     print(' Epoch: %d'%(epoch))
     print(' Train Acc@1 {top1.avg:.3f}'.format(top1=top1))
@@ -134,6 +141,7 @@ def run(args):
 
         with torch.no_grad():
             validate(epoch, model, val_loader, writer)
+    writer.close()
     return 
 
 if __name__ == '__main__':
