@@ -12,9 +12,9 @@ os.makedirs("results", exist_ok=True)
 writer = utils.log_writer("results", "maskrcnn")
 num_classes = 4 # 0 for backgroud 
  
-model = utils.get_instance_segmentation_model(num_classes).double()
+model = utils.get_instance_segmentation_model(num_classes)
 results_dir = Path("results")
-existing_checkpoints = sorted(results_dir.glob("maskrcnn_*.pth"))
+existing_checkpoints = sorted(results_dir.glob("maskrcnn_*.pth"), key=lambda p: int(p.stem.split("_")[-1]))
 if existing_checkpoints:
     checkpoint_path = existing_checkpoints[-1]
     model.load_state_dict(torch.load(checkpoint_path, map_location="cpu"))
@@ -22,12 +22,12 @@ if existing_checkpoints:
 else:
     print("No existing checkpoint found in results/. Training from scratch.")
 
-dataset = MultiShapeDataset(10)
+dataset = MultiShapeDataset(200)
 
 torch.manual_seed(233)
 
 data_loader = torch.utils.data.DataLoader(
-    dataset, batch_size=2, num_workers=0, shuffle=True,
+    dataset, batch_size=4, num_workers=4, shuffle=True,
     collate_fn=utils.collate_fn)
 
 params = [p for p in model.parameters() if p.requires_grad]
@@ -35,11 +35,12 @@ optimizer = torch.optim.SGD(params, lr=0.001,
                             momentum=0.9, weight_decay=0.0005)
 
 lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer,
-                                               step_size=3,
+                                               step_size=5,
                                                gamma=0.1)
 
-num_epochs = 3
-device = torch.device('cpu')
+num_epochs = 15
+device = torch.device('cuda')
+model.to(device)
 
 count = 0
 for epoch in range(num_epochs):

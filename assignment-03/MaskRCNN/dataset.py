@@ -83,9 +83,8 @@ class SingleShapeDataset(torch.utils.data.Dataset):
         target["masks"] = masks
         target["image_id"] = image_id
         target["area"] = area
-        img = torch.tensor(img)
+        img = torch.tensor(img, dtype=torch.float32) / 255.0
         img = img.permute(2,0,1)
-
 
         return img, target
 
@@ -98,6 +97,13 @@ def compute_iou(box, boxes, box_area, boxes_area):
     ## ----------------------------- TODO ----------------------- ##
     ## Compute the IoU between the specified box and other boxes  ##
     ## ---------------------------------------------------------- ##
+    x1 = np.maximum(box[0], boxes[:, 0])
+    y1 = np.maximum(box[1], boxes[:, 1])
+    x2 = np.minimum(box[2], boxes[:, 2])
+    y2 = np.minimum(box[3], boxes[:, 3])
+    intersection = np.maximum(0, x2 - x1) * np.maximum(0, y2 - y1)
+    union = box_area + boxes_area - intersection
+    iou = intersection / np.where(union == 0, 1, union)
     return iou
 
 
@@ -122,7 +128,8 @@ def nom_max_suppression(boxes, threshold):
         iou = compute_iou(boxes[i,:], boxes[ixs[1:],:], area[i], area[ixs[1:]])
         ## ----------------------------- TODO ----------------------- ##
         ## Remove the indexes with IoU greater than the threshold     ##
-        ixs = 
+        remove = np.where(iou > threshold)[0] + 1  # offset by 1 since ixs[0] is already picked
+        ixs = np.delete(ixs, np.concatenate([[0], remove]))
         ## ---------------------------------------------------------- ##
     
     return np.array(pick, dtype=np.int32)
@@ -191,17 +198,19 @@ class MultiShapeDataset(torch.utils.data.Dataset):
 
         ## ------------------ TODO ------------------- ##
         ## randomize the background color of the image ##
-        img = 
-
+        img[...,:] = np.asarray([random.randint(0, 255) for _ in range(3)])[None, None, :]
         ## ------------------------------------------- ##
         
 
         ## ------------------------ TODO --------------------- ##
         ## randomize the type, position and size of the shapes ##
-        obj_param = np.zeros((num_objs, 4)) 
-        obj_ids = np.zeros((num_objs)) 
+        obj_param = np.zeros((num_objs, 4))
+        obj_ids = np.zeros((num_objs))
 
-
+        for i in range(num_objs):
+            shape_id = random.randint(1, 3)
+            obj_ids[i] = shape_id
+            obj_param[i] = self._draw_one_shape_on_mask(masks[i], shape_id)
 
         ## --------------------------------------------------- ##
         
@@ -228,10 +237,12 @@ class MultiShapeDataset(torch.utils.data.Dataset):
 
         ## ------------------------ TODO --------------------- ##
         ## update the masks to handle occlusions               ##
-
-
-
-
+        # Drawing order: index (n-1) first, index 0 last (on top).
+        # So mask[i] should exclude pixels already covered by masks[0..i-1].
+        # Vectorized: cumsum along axis=0 gives running sum; subtract current mask
+        # to get sum of all prior masks at each pixel.
+        covered = (np.cumsum(masks, axis=0) - masks) > 0
+        masks[covered] = 0
         ## --------------------------------------------------- ##
 
 
@@ -252,7 +263,7 @@ class MultiShapeDataset(torch.utils.data.Dataset):
         target["masks"] = masks
         target["image_id"] = image_id
         target["area"] = area
-        img = torch.tensor(img)
+        img = torch.tensor(img, dtype=torch.float32) / 255.0
         img = img.permute(2,0,1)
 
         return img, target
@@ -267,6 +278,6 @@ if __name__ == '__main__':
     os.makedirs("results", exist_ok=True)
     path = "results/" 
 
-    for i in range(4):
+    for i in range(10):
         imgs, labels = dataset[i]
         plot_save_dataset(path+str(i)+"_data.png", imgs, labels)

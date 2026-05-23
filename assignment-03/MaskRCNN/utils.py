@@ -40,7 +40,7 @@ def plot_save_output(path, imgs, output):
         plt.subplot(1 ,2 ,1)
         plt.title("Input img")
         plt.axis("off")
-        plt.imshow(imgs.permute(1,2,0).detach().numpy().astype(np.uint8))
+        plt.imshow(imgs.permute(1,2,0).detach().numpy().clip(0, 1))
 
         plt.subplot(1 ,2 ,2)
         plt.title("Mask "+str(scores[i]))
@@ -64,7 +64,7 @@ def plot_save_dataset(path, imgs, output):
     plt.subplot(1 ,cols ,1)
     plt.title("Input img")
     plt.axis("off")
-    plt.imshow(imgs.permute(1,2,0).detach().numpy().astype(np.uint8))
+    plt.imshow(imgs.permute(1,2,0).detach().numpy().clip(0, 1))
 
     for i in range(num_objs):
         plt.subplot(1, cols, i+2)

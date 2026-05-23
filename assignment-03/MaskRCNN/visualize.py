@@ -15,12 +15,12 @@ data_loader_test = torch.utils.data.DataLoader(
 num_classes = 4
  
 # get the model using the helper function
-model = utils.get_instance_segmentation_model(num_classes).double()
+model = utils.get_instance_segmentation_model(num_classes)
 # Use a low score threshold so short CPU training runs still produce
 # qualitative predictions for inspection.
 model.roi_heads.score_thresh = 0.0
 results_dir = Path("results")
-existing_checkpoints = sorted(results_dir.glob("maskrcnn_*.pth"))
+existing_checkpoints = sorted(results_dir.glob("maskrcnn_*.pth"), key=lambda p: int(p.stem.split("_")[-1]))
 if not existing_checkpoints:
     raise FileNotFoundError(
         "No checkpoint found in results/. Run train.py first so visualize.py can load a model."
