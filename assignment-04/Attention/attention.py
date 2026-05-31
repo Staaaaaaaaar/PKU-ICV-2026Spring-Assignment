@@ -12,14 +12,11 @@ def make_causal_mask(seq_len, device=None, dtype=torch.float32):
     when token i is allowed to attend to token j, and a large negative value
     when j is a future token that should be masked.
     """
-    # ---------------- TODO ----------------
-    # Return an upper-triangular additive mask. The diagonal should be 0.
-    # Example for seq_len = 3:
-    # [[0, -1e9, -1e9],
-    #  [0,     0, -1e9],
-    #  [0,     0,     0]]
-    # --------------------------------------
-    raise NotImplementedError
+    mask = torch.triu(
+        torch.full((seq_len, seq_len), -1e9, device=device, dtype=dtype),
+        diagonal=1,
+    )
+    return mask.unsqueeze(0).unsqueeze(0)
 
 
 def scaled_dot_product_attention(Q, K, V, mask=None):
@@ -38,13 +35,13 @@ def scaled_dot_product_attention(Q, K, V, mask=None):
         out: attended values with shape (B, H, Tq, Dv)
         attn: attention weights with shape (B, H, Tq, Tk)
     """
-    # ---------------- TODO ----------------
-    # 1. Compute Q @ K^T / sqrt(D).
-    # 2. Add mask if it is not None.
-    # 3. Apply softmax over the key dimension.
-    # 4. Compute attn @ V.
-    # --------------------------------------
-    raise NotImplementedError
+    d = Q.shape[-1]
+    scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(d)
+    if mask is not None:
+        scores = scores + mask
+    attn = torch.softmax(scores, dim=-1)
+    out = torch.matmul(attn, V)
+    return out, attn
 
 
 class MultiHeadSelfAttention(nn.Module):
@@ -80,10 +77,17 @@ class MultiHeadSelfAttention(nn.Module):
             out: tensor with shape (B, T, C)
             attn: attention weights with shape (B, H, T, T)
         """
-        # ---------------- TODO ----------------
-        # 1. Project x to Q, K, V.
-        # 2. Split each projection into multiple heads.
-        # 3. Call scaled_dot_product_attention.
-        # 4. Merge the heads and apply out_proj.
-        # --------------------------------------
-        raise NotImplementedError
+        B, T, _ = x.shape
+
+        q = self.q_proj(x)
+        k = self.k_proj(x)
+        v = self.v_proj(x)
+
+        q = q.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        k = k.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        v = v.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+
+        out, attn = scaled_dot_product_attention(q, k, v, mask=mask)
+        out = out.transpose(1, 2).contiguous().view(B, T, self.embed_dim)
+        out = self.out_proj(out)
+        return out, attn
