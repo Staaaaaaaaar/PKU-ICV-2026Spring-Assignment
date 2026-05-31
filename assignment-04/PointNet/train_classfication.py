@@ -22,6 +22,8 @@ if __name__ == '__main__':
 
     opt = setting()
     writer = log_writer(opt.expf, f"cls_{args.dim}D")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("using device:", device)
 
     blue = lambda x: '\033[94m' + x + '\033[0m'
 
@@ -60,6 +62,7 @@ if __name__ == '__main__':
         classifier = PointNetCls1024D(k=num_classes)
     else:
         raise NotImplementedError
+    classifier = classifier.to(device)
 
     optimizer = optim.Adam(classifier.parameters(), lr=0.01, betas=(0.9, 0.999))
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.8)
@@ -71,7 +74,8 @@ if __name__ == '__main__':
     for epoch in range(opt.nepoch):
         for i, data in enumerate(dataloader, 0):
             points, target = data
-            target = target[:, 0]
+            points = points.to(device)
+            target = target[:, 0].to(device)
             optimizer.zero_grad()
             classifier = classifier.train()
             pred, _ = classifier(points)
@@ -87,7 +91,8 @@ if __name__ == '__main__':
             if i % 10 == 0:
                 j, data = next(enumerate(testdataloader, 0))
                 points, target = data
-                target = target[:, 0]
+                points = points.to(device)
+                target = target[:, 0].to(device)
                 classifier = classifier.eval()
                 pred, _= classifier(points)
                 loss = F.nll_loss(pred, target)
@@ -106,7 +111,8 @@ if __name__ == '__main__':
     total_testset = 0
     for i,data in tqdm(enumerate(testdataloader, 0)):
         points, target = data
-        target = target[:, 0]
+        points = points.to(device)
+        target = target[:, 0].to(device)
         classifier = classifier.eval()
         pred, _ = classifier(points)
         pred_choice = pred.data.max(1)[1]

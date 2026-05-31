@@ -10,3 +10,7 @@ assignment-02/datasets/
 
 assignment-03/results/
 assignment-03/MaskRCNN/results/
+
+assignment-04/data/
+assignment-04/PointNet/exps/
+assignment-04/PointNet/results/

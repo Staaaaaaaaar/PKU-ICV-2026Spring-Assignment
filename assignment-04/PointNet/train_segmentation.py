@@ -15,6 +15,8 @@ if __name__ == '__main__':
 
     opt = setting()
     writer = log_writer(opt.expf, "seg_1024D")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print("using device:", device)
 
     random.seed(opt.manualSeed)
     torch.manual_seed(opt.manualSeed)
@@ -49,6 +51,7 @@ if __name__ == '__main__':
     blue = lambda x: '\033[94m' + x + '\033[0m'
 
     classifier = PointNetSeg(k=num_classes)
+    classifier = classifier.to(device)
 
 
     optimizer = optim.Adam(classifier.parameters(), lr=0.001, betas=(0.9, 0.999))
@@ -60,6 +63,8 @@ if __name__ == '__main__':
         
         for i, data in enumerate(dataloader, 0):
             points, target = data
+            points = points.to(device)
+            target = target.to(device)
             optimizer.zero_grad()
             classifier = classifier.train()
             pred = classifier(points)
@@ -78,6 +83,8 @@ if __name__ == '__main__':
             if i % 10 == 0:
                 j, data = next(enumerate(testdataloader, 0))
                 points, target = data
+                points = points.to(device)
+                target = target.to(device)
                 classifier = classifier.eval()
                 pred = classifier(points)
                 pred = pred.view(-1, num_classes)
@@ -96,6 +103,8 @@ if __name__ == '__main__':
     shape_ious = []
     for i,data in tqdm(enumerate(testdataloader, 0)):
         points, target = data
+        points = points.to(device)
+        target = target.to(device)
         classifier = classifier.eval()
         pred = classifier(points)
         pred_choice = pred.data.max(2)[1]

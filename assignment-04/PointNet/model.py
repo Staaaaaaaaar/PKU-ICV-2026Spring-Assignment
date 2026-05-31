@@ -15,9 +15,14 @@ class PointNetfeat(nn.Module):
     '''
     def __init__(self, segmentation = False, d=1024):
         super(PointNetfeat, self).__init__()
-        ## ------------------- TODO ------------------- ##
-        ## Define the layers in the feature extractor. ##
-        ## ------------------------------------------- ##
+        self.segmentation = segmentation
+        self.d = d
+        self.conv1 = nn.Conv1d(3, 64, 1)
+        self.conv2 = nn.Conv1d(64, 128, 1)
+        self.conv3 = nn.Conv1d(128, d, 1)
+        self.bn1 = nn.BatchNorm1d(64)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.bn3 = nn.BatchNorm1d(d)
 
     def forward(self, x):
         '''
@@ -27,9 +32,22 @@ class PointNetfeat(nn.Module):
                 return the global feature, and the per point feature for cruciality visualization in question b). # (B, d), (B, N, d)
             Here, B is the batch size, N is the number of points, d is the dimension of the global feature.
         '''
-        ## ------------------- TODO ------------------- ##
-        ## Implement the forward pass.                 ##
-        ## ------------------------------------------- ##
+        # x: (B, N, 3) -> (B, 3, N) for Conv1d
+        x = x.transpose(2, 1)
+        x = F.relu(self.bn1(self.conv1(x)))
+        local_feat = x
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = self.bn3(self.conv3(x))
+
+        per_point_feat = x.transpose(2, 1)  # (B, N, d)
+        global_feat = torch.max(x, 2, keepdim=False)[0]  # (B, d)
+
+        if self.segmentation:
+            num_points = local_feat.size(2)
+            global_repeated = global_feat.unsqueeze(-1).repeat(1, 1, num_points)
+            return torch.cat([global_repeated, local_feat], dim=1)  # (B, d+64, N)
+
+        return global_feat, per_point_feat
 
 
 class PointNetCls1024D(nn.Module):
@@ -40,17 +58,22 @@ class PointNetCls1024D(nn.Module):
     '''
     def __init__(self, k=2):
         super(PointNetCls1024D, self).__init__()
-        ## ------------------- TODO ------------------- ##
-        ## Define the layers in the classifier.        ##
-        ## ------------------------------------------- ##
+        self.feat = PointNetfeat(segmentation=False, d=1024)
+        self.fc1 = nn.Linear(1024, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, k)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.bn2 = nn.BatchNorm1d(256)
 
     def forward(self, x):
         '''
             return the log softmax of the classification result and the per point feature for cruciality visualization in question b). # (B, k), (B, N, d=1024)
         '''
-        ## ------------------- TODO ------------------- ##
-        ## Implement the forward pass.                 ##
-        ## ------------------------------------------- ##
+        x, point_feat = self.feat(x)
+        x = F.relu(self.bn1(self.fc1(x)))
+        x = F.relu(self.bn2(self.fc2(x)))
+        x = self.fc3(x)
+        return F.log_softmax(x, dim=1), point_feat
 
 class PointNetCls256D(nn.Module):
     '''
@@ -60,17 +83,19 @@ class PointNetCls256D(nn.Module):
     '''
     def __init__(self, k=2 ):
         super(PointNetCls256D, self).__init__()
-        ## ------------------- TODO ------------------- ##
-        ## Define the layers in the classifier.        ##
-        ## ------------------------------------------- ##
+        self.feat = PointNetfeat(segmentation=False, d=256)
+        self.fc1 = nn.Linear(256, 128)
+        self.fc2 = nn.Linear(128, k)
+        self.bn1 = nn.BatchNorm1d(128)
 
     def forward(self, x):
         '''
             return the log softmax of the classification result and the per point feature for cruciality visualization in question b). # (B, k), (B, N, d=256)
         '''
-        ## ------------------- TODO ------------------- ##
-        ## Implement the forward pass.                 ##
-        ## ------------------------------------------- ##
+        x, point_feat = self.feat(x)
+        x = F.relu(self.bn1(self.fc1(x)))
+        x = self.fc2(x)
+        return F.log_softmax(x, dim=1), point_feat
 
 
 class PointNetSeg(nn.Module):
@@ -81,9 +106,15 @@ class PointNetSeg(nn.Module):
     '''
     def __init__(self, k = 2):
         super(PointNetSeg, self).__init__()
-        ## ------------------- TODO ------------------- ##
-        ## Define the layers in the segmentation head. ##
-        ## ------------------------------------------- ##
+        self.k = k
+        self.feat = PointNetfeat(segmentation=True, d=1024)
+        self.conv1 = nn.Conv1d(1088, 512, 1)
+        self.conv2 = nn.Conv1d(512, 256, 1)
+        self.conv3 = nn.Conv1d(256, 128, 1)
+        self.conv4 = nn.Conv1d(128, k, 1)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.bn2 = nn.BatchNorm1d(256)
+        self.bn3 = nn.BatchNorm1d(128)
 
     def forward(self, x):
         '''
@@ -92,6 +123,10 @@ class PointNetSeg(nn.Module):
             Output:
                 the log softmax of the segmentation result. # (B, N, k)
         '''
-        ## ------------------- TODO ------------------- ##
-        ## Implement the forward pass.                 ##
-        ## ------------------------------------------- ##
+        x = self.feat(x)
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = self.conv4(x)
+        x = x.transpose(2, 1).contiguous()
+        return F.log_softmax(x, dim=-1)
